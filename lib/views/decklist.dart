@@ -1,41 +1,55 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
 
-class DeckList extends StatelessWidget {
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:mp3/models/data_manager.dart';
+import 'package:mp3/models/deckscreen.dart';
+
+class DeckList extends StatefulWidget {
   const DeckList({super.key});
+  @override
+  _DeckListState createState() => _DeckListState();
+}
+
+class _DeckListState extends State<DeckList> {
+  bool dataLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Check if data has already been loaded
+    if (!dataLoaded) {
+      loadJsonDataToDatabase();
+      dataLoaded = true;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: GridView.count(
-        crossAxisCount: 2,
-        padding: const EdgeInsets.all(4),
-        children: List.generate(3, (index) => 
-          Card(
-            color: Colors.purple[100],
-            child: Container(
-              alignment: Alignment.center,
-              child: Stack(
-                children: [
-                  InkWell(onTap: () {
-                    print('Deck ${index + 1} tapped');
-                  }),
-                  Center(child: Text('Deck ${index + 1}')),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () {
-                        print('Deck ${index + 1} edited');
-                      },
-                    ),
-                  ),
-                ],
-              )
-            )
-          )
-        )
-      )
+    return MaterialApp(
+      home: DeckListScreen(),
     );
+  }
+}
+
+Future<void> loadJsonDataToDatabase() async {
+  final String jsonStr = await rootBundle.loadString('assets/flashcards.json');
+  final List<dynamic> jsonData = json.decode(jsonStr);
+
+  for (var deckData in jsonData) {
+    final Decktable deck = Decktable(title: deckData['title']);
+    await deck.dbSave();
+
+    final List<dynamic> flashcardsData = deckData['flashcards'];
+
+    for (var flashcardData in flashcardsData) {
+      final Flashcardtable flashcard = Flashcardtable(
+        deck_id: deck.id!,
+        question: flashcardData['question'],
+        answer: flashcardData['answer'],
+      );
+      await flashcard.dbSave();
+    }
   }
 }
